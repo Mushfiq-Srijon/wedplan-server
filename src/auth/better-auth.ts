@@ -14,6 +14,16 @@ export const auth = betterAuth({
   basePath: '/api/auth',
   secret: env.betterAuthSecret || env.jwtSecret,
   trustedOrigins: [env.clientUrl],
+  // The client and API are deployed on different Vercel origins. OAuth state
+  // and session cookies therefore need cross-origin-safe production attributes
+  // so the browser sends them back to the API during Google's redirect.
+  advanced: {
+    useSecureCookies: env.nodeEnv === 'production',
+    defaultCookieAttributes: {
+      sameSite: env.nodeEnv === 'production' ? 'none' : 'lax',
+      secure: env.nodeEnv === 'production',
+    },
+  },
   database: mongodbAdapter(authDatabase, {
     // This keeps local standalone MongoDB instances usable. Atlas replica sets
     // can enable adapter transactions later if the deployment needs them.
