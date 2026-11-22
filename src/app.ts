@@ -4,6 +4,7 @@ import express, { type RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/better-auth.js';
 import { env } from './config/env.js';
@@ -44,7 +45,11 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/payments', paymentRoutes);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'wedplan-server', database: Boolean(env.mongodbUri) });
+  res.json({
+    ok: true,
+    service: 'wedplan-server',
+    database: mongoose.connection.readyState === 1,
+  });
 });
 
 app.use(notFound);
