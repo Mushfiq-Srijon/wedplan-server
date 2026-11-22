@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express from 'express';
-import rateLimit from 'express-rate-limit';
+import express, { type RequestHandler } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { toNodeHandler } from 'better-auth/node';
@@ -18,8 +18,9 @@ import serviceRoutes from './routes/service.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
+const helmetMiddleware = (helmet as unknown as () => RequestHandler)();
 
-app.use(helmet());
+app.use(helmetMiddleware);
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 
 // Stripe signs the exact raw request body, so this route must run before JSON parsing.
