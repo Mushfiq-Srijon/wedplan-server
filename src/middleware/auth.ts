@@ -1,6 +1,7 @@
 import type { NextFunction, RequestHandler } from 'express';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { fromNodeHeaders } from 'better-auth/node';
+import mongoose from 'mongoose';
 import { auth } from '../auth/better-auth.js';
 import { env } from '../config/env.js';
 import { User } from '../models/index.js';
@@ -33,9 +34,13 @@ async function findUserFromBetterAuthSession(request: Parameters<RequestHandler>
   // Better Auth IDs are persisted by the Mongo adapter as ObjectIds. The
   // email fallback also keeps existing data readable if the adapter is later
   // configured with a string-based ID strategy.
-  return (
-    (await User.findById(session.user.id)) || (await User.findOne({ email: session.user.email }))
-  );
+  // Better Auth normally uses Mongo ObjectIds with this adapter, but keeping
+  // the email fallback safe allows existing string-based auth IDs to work too.
+  const userById = mongoose.isValidObjectId(session.user.id)
+    ? await User.findById(session.user.id)
+    : null;
+
+  return userById || (await User.findOne({ email: session.user.email }));
 }
 
 export const requireAuth: RequestHandler = async (req, res, next) => {
