@@ -7,6 +7,7 @@ import { env } from '../config/env.js';
 // verification collections remain separate from the business collections.
 const mongoClient = new MongoClient(env.mongodbUri || 'mongodb://127.0.0.1:27017');
 const authDatabase = mongoClient.db(env.mongodbDb || 'wedplan');
+let authConnectionPromise: Promise<void> | null = null;
 
 export const auth = betterAuth({
   appName: 'WedPlan',
@@ -99,5 +100,15 @@ export async function connectAuthDatabase(): Promise<void> {
     return;
   }
 
-  await mongoClient.connect();
+  if (authConnectionPromise) return authConnectionPromise;
+
+  authConnectionPromise = mongoClient
+    .connect()
+    .then(() => undefined)
+    .catch((error) => {
+      authConnectionPromise = null;
+      throw error;
+    });
+
+  return authConnectionPromise;
 }

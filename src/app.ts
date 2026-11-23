@@ -6,7 +6,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from './auth/better-auth.js';
+import { auth, connectAuthDatabase } from './auth/better-auth.js';
+import { connectDatabase } from './config/database.js';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import adminRoutes from './routes/admin.routes.js';
@@ -20,9 +21,35 @@ import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
 const helmetMiddleware = (helmet as unknown as () => RequestHandler)();
+let initializationPromise: Promise<void> | null = null;
+
+function initializeDatabases(): Promise<void> {
+  if (process.env.NODE_ENV === 'test') return Promise.resolve();
+  if (!initializationPromise) {
+    initializationPromise = Promise.all([connectDatabase(), connectAuthDatabase()])
+      .then(() => undefined)
+      .catch((error) => {
+        initializationPromise = null;
+        throw error;
+      });
+  }
+  return initializationPromise;
+}
 
 app.use(helmetMiddleware);
 app.use(cors({ origin: env.clientUrl, credentials: true }));
+
+// Vercel can load the exported Express app directly instead of executing the
+// standalone server bootstrap, so initialize both database clients lazily per
+// warm serverless instance as well as during local startup.
+app.use(async (_req, _res, next) => {
+  try {
+    await initializeDatabases();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Stripe signs the exact raw request body, so this route must run before JSON parsing.
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
